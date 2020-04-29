@@ -73,6 +73,7 @@ def metadata_json_output(metadata):
     } for transcript in metadata.transcripts]
     return json.dumps(json_result, indent=2)
 
+
 model_path = "./deepspeech-0.7.0-models.pbmm"
 beam_width = 500
 lm_alpha = 0.75
@@ -84,10 +85,6 @@ model_load_start = timer()
 ds = Model(model_path)
 model_load_end = timer() - model_load_start
 print('Loaded scorer in: ' ,model_load_end)
-
-if beam_width:
-	ds.setModelBeamWidth(beam_width)
-
 
 desired_sample_rate = ds.sampleRate()
 
@@ -101,16 +98,17 @@ if scorer:
     if lm_alpha and lm_beta:
         ds.setScorerAlphaBeta(lm_alpha, lm_beta)
 
+def speech(audio):
+	fin = wave.open(audio, 'rb')
+	fs_orig = fin.getframerate()
+	if fs_orig != desired_sample_rate:
+	    print('Warning: original sample rate ({}) is different than {}hz. Resampling might produce erratic speech recognition.'.format(fs_orig, desired_sample_rate), file=sys.stderr)
+	    fs_new, audio = convert_samplerate(audio, desired_sample_rate)
+	else:
+	    audio = np.frombuffer(fin.readframes(fin.getnframes()), np.int16)
 
-fin = wave.open(audio, 'rb')
-fs_orig = fin.getframerate()
-if fs_orig != desired_sample_rate:
-    print('Warning: original sample rate ({}) is different than {}hz. Resampling might produce erratic speech recognition.'.format(fs_orig, desired_sample_rate), file=sys.stderr)
-    fs_new, audio = convert_samplerate(audio, desired_sample_rate)
-else:
-    audio = np.frombuffer(fin.readframes(fin.getnframes()), np.int16)
-
-audio_length = fin.getnframes() * (1/fs_orig)
-fin.close()
-
-print(ds.stt(audio))
+	audio_length = fin.getnframes() * (1/fs_orig)
+	fin.close()
+	text = ds.stt(audio)
+	print(ds.stt(audio))
+	return text
